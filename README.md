@@ -1,7 +1,7 @@
 # WISPR3
 WISPR3
 
-Firmware binary files (an other formats) can be found at [https://github.com/embeddedocean/wispr3_nrs/tree/Release](https://github.com/embeddedocean/wispr3/tree/main/Release)
+Firmware binary files (an other formats) can be found at [https://github.com/embeddedocean/wispr3/tree/Release](https://github.com/embeddedocean/wispr3/tree/main/Release)
 
 ## Bootloader:
 The bootloader executes at startup and either updates the application firmware or executes the application firmware.
