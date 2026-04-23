@@ -125,10 +125,11 @@ preamp_gain = 10*log10(spec);
 preamp_freq = f;
 
 % plot spectrum
+ind = (1:(length(preamp_gain)-13));
 fig2 = figure(2); clf;  
 set(fig2, 'Position', [50 50 950 450]);
-hold on;
-plot(preamp_freq/1000, preamp_gain,'.-'); %normalize the power spec 
+%hold on;
+plot(preamp_freq(ind)/1000, preamp_gain(ind),'.-'); %normalize the power spec 
 grid(gca,'minor');
 grid on;
 xlabel('Frequency [kHz]'),

@@ -7,6 +7,7 @@ window = hamming(fft_size)*1.59;
 psd.db = [];
 psd.freq = [];
 
+
 % remove the mean
 data = data - mean(data(:));
 

@@ -77,10 +77,6 @@ number_buffers = file_size*512 / buffer_size;
 % The number of bytes of padding after each adc buffer, if any
 padding_per_buffer = buffer_size - timestamp - (samples_per_buffer * sample_size);
 
-% buffer duration in secs
-dt = 1.0 / sampling_rate;
-duration = samples_per_buffer * dt;
- 
 % fill the header structure
 hdr.time = time; % back compatability
 hdr.second = second;
@@ -94,7 +90,9 @@ hdr.buffer_size = buffer_size;
 hdr.samples_per_buffer = samples_per_buffer;
 hdr.sample_size = sample_size;
 hdr.sampling_rate = sampling_rate;
+dt = 1.0 / hdr.sampling_rate;
 hdr.channels = channels;
+hdr.samples_per_channel = samples_per_buffer / channels;
 hdr.gain = gain;
 hdr.adc_type = adc_type;
 hdr.adc_vref = adc_vref;
@@ -102,9 +100,12 @@ hdr.adc_df = adc_df;
 hdr.decimation = decimation;
 hdr.adc_timestamp = timestamp;
 hdr.number_buffers = (hdr.file_size - 1) * 512 / hdr.buffer_size;
-hdr.buffer_duration = samples_per_buffer * dt;
+hdr.buffer_duration = samples_per_channel * dt;
 hdr.file_duration = hdr.buffer_duration * hdr.number_buffers;
 
+% buffer duration in secs
+duration = hdr.buffer_duration;
+ 
 data = [];
 time = [];
 stamp = [];
@@ -168,7 +169,7 @@ for n = 1:num_bufs
     data(:,n) = double(raw)*q;
 
     % add a time column to the time matrix
-    time(:,n) = stamp(n) + dt*(0:(samples_per_buffer-1));
+    time(:,n) = stamp(n) + dt*(0:(samples_per_channel-1));
     
 end
 

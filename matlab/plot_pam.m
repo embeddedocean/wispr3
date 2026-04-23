@@ -24,7 +24,8 @@ if(isempty(num_secs_to_display))
     num_secs_to_display = hdr.file_duration;
 end
 
-num_bufs_to_display = round(num_secs_to_display * hdr.sampling_rate / hdr.samples_per_buffer);
+nsamps = hdr.samples_per_buffer/hdr.channels; % num samps per chan per buffer
+num_bufs_to_display = round(num_secs_to_display * hdr.sampling_rate / nsamps);
 
 %R = input('Enter data decimation factor [1]: ');
 %if(isempty(R))
@@ -96,12 +97,13 @@ while( go )
     start = start + num_bufs_to_display;
     
     % remove the start time because the numbers are too big for plot zoom
-    time = time - time(1,1);
+    t0 = time(1,1);
+    time = time(:) - t0;
     
+    % reshape data matrix 
     nchans = hdr.channels;
     nsamps = length(raw(:)) / nchans;
-    
-    data = reshape(raw(:), nsamps, nchans);
+    data = transpose(reshape(raw(:), nchans, nsamps));
     
     % remove the mean
     %data = data - mean(data(:));
@@ -114,8 +116,7 @@ while( go )
     % plot data buffers
     fig1 = figure(1); clf;
     %subplot(2,1,1);
-    plot(time(:), data(:),'.-');
-    %plot(time, raw,'.-');
+    plot(time, data,'.-');
     ylabel('Volts');
     xlabel('Seconds');
     grid on;
@@ -126,46 +127,49 @@ while( go )
     
     if plot_psd
         
-        % Calc spectrum of data
-        fs = hdr.sampling_rate;
-        psd = pam_psd(data(:), fs, fft_size, overlap, t0, preamp);
-        
-        % plot noise spectrum
-        fig2 = figure(2); clf;
-        subplot(2,1,2);
-        %hold on;
-        semilogx(psd.freq/1000, psd.db, 'k.-');
-        %grid(gca,'minor');
-        grid on;
-        xlabel('Frequency [kHz]'),
-        sig_var = var(data(:));
-        title('Averaged Power Spectral Density Estimate');
-        %title(['Averaged Power Spectral Density Estimate: Total Energy ' num2str(psd.total_energy) ', Variance ' num2str(sig_var)]);
-        if use_preamp_gain
-            ylabel('dB re: 1 uPa^2/Hz');
-            plot_wenz(2);
-            axis([0 psd.freq(end)/1000 0 100]);
-            %legend('SPL','Wenz SS-0', 'Wenz SS-1', 'Wenz SS-6');
-        else
-            ylabel('dB re: 1 V^2/Hz');
+        for chan = 1:nchans
+
+            % Calc spectrum of data
+            fs = hdr.sampling_rate;
+            psd = pam_psd(data(:,chan), fs, fft_size, overlap, t0, preamp);
+
+            % plot noise spectrum
+            fig2 = figure(chan+1); clf;
+            subplot(2,1,2);
+            %hold on;
+            semilogx(psd.freq/1000, psd.db, 'k.-');
+            %grid(gca,'minor');
+            grid on;
+            xlabel('Frequency [kHz]'),
+            sig_var = var(data(:));
+            title('Averaged Power Spectral Density Estimate');
+            %title(['Averaged Power Spectral Density Estimate: Total Energy ' num2str(psd.total_energy) ', Variance ' num2str(sig_var)]);
+            if use_preamp_gain
+                ylabel('dB re: 1 uPa^2/Hz');
+                plot_wenz(2);
+                axis([0 psd.freq(end)/1000 0 100]);
+                %legend('SPL','Wenz SS-0', 'Wenz SS-1', 'Wenz SS-6');
+            else
+                ylabel('dB re: 1 V^2/Hz');
+            end
+            subplot(2,1,1);
+            hold on;
+            %surf(T, freq/1000, 10*log10(abs(spec)),'EdgeColor','none');
+            surf(psd.time-psd.time(1), psd.freq/1000, psd.spectrogram,'EdgeColor','none');
+            axis xy; axis tight; view(0,90);
+            xlabel('Seconds');
+            ylabel('Frequency (kHz)');
+            if use_preamp_gain
+                str = sprintf('%s Spectrogram: Channel %d', file(1:end-4), chan);
+                colormap(gray); caxis([20 80]);
+            else
+                str = sprintf('%s Spectrogram: Channel %d', file(1:end-4), chan);
+                colormap(bone); caxis([-120 -80]);
+            end
+            colorbar();
+            str = strrep(str, '_', '\_');
+            title(str);
         end
-        subplot(2,1,1);
-        hold on;
-        %surf(T, freq/1000, 10*log10(abs(spec)),'EdgeColor','none');
-        surf(psd.time-psd.time(1), psd.freq/1000, psd.spectrogram,'EdgeColor','none');
-        axis xy; axis tight; view(0,90);
-        xlabel('Seconds');
-        ylabel('Frequency (kHz)');
-        if use_preamp_gain
-            str = sprintf('%s Spectrogram: dB re: 1 uPa^2/Hz', file(1:end-4));
-            colormap(gray); caxis([20 80]);
-        else
-            str = sprintf('%s Spectrogram: dB re: 1 V^2/Hz', file(1:end-4));
-            colormap(bone); caxis([-120 -80]);
-        end
-        colorbar();
-        str = strrep(str, '_', '\_');
-        title(str);
 
     end
 
@@ -180,10 +184,19 @@ while( go )
         axis([min(bufs) max(bufs)+1 min(timestamp-t0)-0.1 max(timestamp-t0)+0.1 ]);    
     end
 
-    in = input('Play sound [0]:');
-    if( in == 1 )
-        sound(data(:)/max(data(:)),hdr.sampling_rate);
-    end;
+    while 1
+        chan = 0;
+        str = sprintf('Play sound channel [%d]: ', chan); 
+        in = input(str);
+        if(~isempty(in)) 
+            chan = in; 
+            if( chan >= 1 && chan <= nchans )
+                sound(data(:,chan)/max(data(:,chan)),hdr.sampling_rate);
+            end;
+        else
+            break;
+        end
+    end
 
     if(start >= hdr.number_buffers)
         go = 0;
